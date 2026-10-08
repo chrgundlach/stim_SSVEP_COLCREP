@@ -1,0 +1,273 @@
+function [ conmat ] = rand_COLCREP(p,RDK,flag_training)
+%rand_COLCREP randomizes experimental conditions
+%
+% to do:
+
+
+
+% set trial number etc
+if flag_training~=0
+    conmat.totaltrials = 1;
+    conmat.totalblocks = 1;
+    
+else
+    conmat.totaltrials =  p.stim.blocknum;
+    conmat.totalblocks = p.stim.blocknum;
+end
+conmat.trialsperblock = conmat.totaltrials/conmat.totalblocks;
+
+%% total trial length [so far only works for same length of blink and contrast windows] [and same number of contrast levels in sweep conditions]
+conmat.triallength_windows = 1 + ... % start each stimulation with one additional contrast level repetition to allow for SSVEP buildup
+    size(p.stim.contr_level_cons{1},2)*p.stim.contr_repeats_per_block + ... % number of sweeps x contrast levels
+    ceil((size(p.stim.contr_level_cons{1},2)*p.stim.contr_repeats_per_block)/(p.blink_interval-1)); % number of blink intervals
+conmat.triallength_times = conmat.triallength_windows * p.stim.contr_intervalllength; % time in ms
+conmat.mats.triallength_times = repmat(conmat.triallength_times,1,conmat.totalblocks);
+conmat.mats.triallength_frames = repmat(conmat.triallength_times/1000*p.scr_refrate,1,conmat.totalblocks);
+%% matrix with onset times of on framesfor RDKs
+[t.onframesonset, t.onframes, t.onframesonset_times]= deal(nan(numel(RDK.RDK),p.scr_refrate*conmat.triallength_times/1000));
+for i_rdk = 1:numel(RDK.RDK)
+    t.mat = ceil(1:p.scr_refrate/RDK.RDK(i_rdk).freq:size(t.onframesonset,2));
+    t.onframesonset(i_rdk,t.mat)=1;
+    t.onframesonset_times(i_rdk,t.mat)=t.mat./p.scr_refrate;
+    t.idx = t.mat(:)+(0:floor(p.scr_refrate/RDK.RDK(i_rdk).freq/2));
+    t.idx = t.idx(t.idx >= 1 & t.idx <= length(t.onframes));
+    t.onframes(i_rdk,t.idx) = 1;
+end
+% figure; plot(t.onframes(1,1:2000))
+% figure; plot(t.onframesonset(1,1:2000))
+
+% move
+[t.movonset_frames, t.movonset_times]=deal(nan(1,p.scr_refrate*conmat.triallength_times/1000));
+t.mat = 1:p.scr_refrate/RDK.RDK(1).mov_freq:size(t.movonset_frames,2);
+t.movonset_frames(t.mat)=1;
+t.movonset_times(t.mat)=t.mat./p.scr_refrate;
+
+% bring both together: move onsets during on frames
+[t.onframesonset2, t.onframesonset_times2]= deal(nan(numel(RDK.RDK),p.scr_refrate*conmat.triallength_times/1000));
+for i_rdk = 1:numel(RDK.RDK)
+    t.idx = ~isnan(t.movonset_frames) & ~isnan(t.onframes(i_rdk,:));
+    t.onframesonset2(i_rdk, t.idx)=1;
+    t.onframesonset_times2(i_rdk, t.idx) = find(t.idx)./p.scr_refrate;
+end
+% figure; plot(t.onframesonset2(1,1:2000))
+
+% create matrix indicating the window each frame belongs to
+t.windowmat = reshape(repmat(1:conmat.triallength_windows,p.scr_refrate,1),1,[]);
+
+%% start randomization
+% randomize position/side to attend
+if flag_training~=0
+    conmat.mats.side2attend = randsample(p.stim.side2attend,1);
+else
+    conmat.mats.side2attend = reshape(repmat(p.stim.side2attend,conmat.totaltrials/numel(p.stim.side2attend),1),1,[]);
+end
+
+% which RDKs are attended?
+conmat.mats.RDK2attend = p.stim.RDK2attend([conmat.mats.side2attend]);
+
+% which contrast level condition? p.stim.contr_level_cons
+if flag_training~=0
+    conmat.mats.contrast_con = randsample(1:numel(p.stim.contr_level_cons),1);
+else
+    conmat.mats.contrast_con = nan(size(conmat.mats.RDK2attend));
+    for i_side = 1:numel(p.stim.side2attend)
+        t.idx = conmat.mats.side2attend == i_side;
+        t.mat = reshape(repmat(1:numel(p.stim.contr_level_cons),sum(t.idx)/numel(p.stim.contr_level_cons),1),1,[]);
+        conmat.mats.contrast_con(t.idx)=t.mat;
+    end
+end
+
+% sequence of blink windows
+t.mat = nan(conmat.triallength_windows,1);
+t.mat(p.blink_interval:p.blink_interval:end) = 1;
+conmat.mats.blink_windows = repmat(t.mat,1,conmat.totaltrials);
+
+% sequence of contrast levels in each trial across windows
+conmat.mats.contrast_levels = nan([conmat.triallength_windows,conmat.totaltrials]);
+conmat.mats.contrast_values = nan([conmat.triallength_windows,numel(RDK.RDK),conmat.totaltrials]);
+for i_trial = 1:conmat.totaltrials
+    % which contrast level condition?
+    t.cidx = conmat.mats.contrast_con(i_trial);
+    % define sweeps (randomly invert them to allow starting with either up or down sweep
+    if randsample([1 2],1)==1
+        t.sweeps = [cell2mat(p.stim.contr_level_cons{t.cidx}) fliplr(cell2mat(p.stim.contr_level_cons{t.cidx}))];
+        t.sweeplevel = [1:size(p.stim.contr_level_cons{t.cidx},2) fliplr(1:size(p.stim.contr_level_cons{t.cidx},2))];
+    else
+        t.sweeps = [fliplr(cell2mat(p.stim.contr_level_cons{t.cidx})) cell2mat(p.stim.contr_level_cons{t.cidx})];
+        t.sweeplevel = [fliplr(1:size(p.stim.contr_level_cons{t.cidx},2)) 1:size(p.stim.contr_level_cons{t.cidx},2)];
+    end
+    sweepmat = repmat(t.sweeps,1, p.stim.contr_repeats_per_block/2);
+    sweeplevelmat = repmat(t.sweeplevel,1,p.stim.contr_repeats_per_block/2);
+    % add repetition at start of trial
+    sweepmat = [sweepmat(:,1) sweepmat];
+    sweeplevelmat = [sweeplevelmat(:,1) sweeplevelmat];
+
+    % write this to conmat.mats.contrast_windows
+    conmat.mats.contrast_values(isnan(conmat.mats.blink_windows(:,i_trial)),:,i_trial) = sweepmat';
+    conmat.mats.contrast_levels(isnan(conmat.mats.blink_windows(:,i_trial)),i_trial) = sweeplevelmat;
+
+    % insert repetitions for blinks
+    conmat.mats.contrast_values(~isnan(conmat.mats.blink_windows(:,i_trial)),:,i_trial) = ...
+        conmat.mats.contrast_values(find(~isnan(conmat.mats.blink_windows(:,i_trial)))-1,:,i_trial);
+    conmat.mats.contrast_levels(~isnan(conmat.mats.blink_windows(:,i_trial)),i_trial) = ...
+        conmat.mats.contrast_levels(find(~isnan(conmat.mats.blink_windows(:,i_trial)))-1,i_trial);
+end
+
+
+
+% determine onset frmes/times for contrast windows
+conmat.mats.contrast_window_onsetframes = repmat(...
+    1:p.scr_refrate*(p.stim.contr_intervalllength/1000):(p.scr_refrate*(p.stim.contr_intervalllength/1000)*conmat.triallength_windows), ...
+    conmat.totaltrials,1)';
+conmat.mats.contrast_window_onsettimes = conmat.mats.contrast_window_onsetframes/p.scr_refrate;
+
+
+% eventnumber per trial
+conmat.mats.eventnum = repmat(p.stim.eventnum,1,conmat.totaltrials);
+
+% event type distributed across blocks
+conmat.mats.eventtype = nan(p.stim.eventnum,conmat.totaltrials);
+t.sides = unique(conmat.mats.side2attend);
+for i_side = 1:numel(t.sides)
+    for i_cont = 1:numel(unique(conmat.mats.contrast_con))
+        t.idx = conmat.mats.side2attend==t.sides(i_side) & conmat.mats.contrast_con == i_cont;
+        t.mat = repmat(1:p.stim.event.type,1,sum(t.idx)*p.stim.eventnum/p.stim.event.type);
+        conmat.mats.eventtype(:,t.idx) = reshape(randsample(t.mat,numel(t.mat)),p.stim.eventnum,[]);
+    end
+end
+
+% which RDK contains events?
+conmat.mats.eventRDK = nan(size(conmat.mats.eventtype));
+t.mat = repmat(conmat.mats.side2attend,p.stim.eventnum,1); % which side attended?
+t.mat2 = repmat(conmat.mats.RDK2attend,p.stim.eventnum,1); % which RDK attended?
+t.RDKidx = [1 2; 3 4]; % RDKs on left and right side
+% for targets
+conmat.mats.eventRDK(conmat.mats.eventtype==1)=t.mat2(conmat.mats.eventtype==1);
+% for distractors
+t.distrmat = find(conmat.mats.eventtype==2);
+for i_ev = 1:numel(t.distrmat)
+    conmat.mats.eventRDK(t.distrmat(i_ev)) = ...
+        t.RDKidx(t.mat(t.distrmat(i_ev)),t.RDKidx(t.mat(t.distrmat(i_ev)),:)~=t.mat2(t.distrmat(i_ev)));
+end
+
+% event direction
+conmat.mats.eventdirection = nan(max(p.stim.eventnum),conmat.totaltrials);
+conmat.mats.eventdirection(~isnan(conmat.mats.eventtype)) = ...
+    randsample(size(RDK.event.direction,1),sum(~isnan(conmat.mats.eventtype),"all"),true);
+
+% distribute events across the trial/block
+conmat.mats.eventwindow = nan(size(conmat.mats.eventRDK));
+conmat.mats.event_onset_frames = nan(size(conmat.mats.eventRDK));
+conmat.mats.event_onset_times = nan(size(conmat.mats.eventRDK));
+
+for i_trial = 1:conmat.totaltrials
+    % randomly distribute across all possible windows
+    t.mat = find(isnan(conmat.mats.blink_windows(:,i_trial)));
+    conmat.mats.eventwindow(:,i_trial) = sort(randsample(t.mat,p.stim.eventnum));
+
+    % now select the event onset times
+    for i_event = 1:numel(conmat.mats.eventwindow(:,i_trial))
+        % possible onset times
+        t.RDKidx = conmat.mats.eventRDK(i_event,i_trial);
+        t.evwidx = conmat.mats.eventwindow(i_event,i_trial);
+        if i_event > 1
+            t.evdist = conmat.mats.event_onset_times(i_event-1,i_trial)+p.stim.event.min_dist;
+        else
+            t.evdist = 0;
+        end
+        
+        t.possframes = ...
+            t.windowmat == t.evwidx  & ... % all onsets in the respective time window
+            t.onframesonset2(t.RDKidx,:)==1 & ... % possible event onset times for the respective RDK
+            t.onframesonset_times2(t.RDKidx,:) < ... % any time before the movement in the next window + min offset
+            (max(t.onframesonset_times2(t.RDKidx, t.windowmat == (t.evwidx))) - p.stim.event.min_offset) & ...
+            t.onframesonset_times2(t.RDKidx,:) < max(t.onframesonset_times2(t.RDKidx,:))-p.stim.event.length & ... % should finish before trial end
+            t.onframesonset_times2(t.RDKidx,:) > t.evdist;
+        % randomly sample from all possible
+        conmat.mats.event_onset_frames(i_event,i_trial) = ...
+            randsample(find(t.possframes),1);
+        conmat.mats.event_onset_times(i_event,i_trial) = conmat.mats.event_onset_frames(i_event,i_trial)/p.scr_refrate;
+    end
+end
+% figure; histogram(diff(conmat.mats.event_onset_times),20)
+% figure; histogram(conmat.mats.event_onset_times,20)
+
+
+
+
+
+
+
+%% randomize all information across experiment
+t.tidx = randperm(conmat.totaltrials);
+
+t.fields = fieldnames(conmat.mats);
+for i_fields = 1:numel(t.fields)
+    if conmat.totaltrials == 1
+        if ndims(conmat.mats.(t.fields{i_fields}))>1
+            conmat.mats.(t.fields{i_fields}) = conmat.mats.(t.fields{i_fields})(:,:,t.tidx);
+        else
+            conmat.mats.(t.fields{i_fields}) = conmat.mats.(t.fields{i_fields})(:,t.tidx);
+        end
+    else
+        if ndims(conmat.mats.(t.fields{i_fields}))>2
+            conmat.mats.(t.fields{i_fields}) = conmat.mats.(t.fields{i_fields})(:,:,t.tidx);
+        else
+            conmat.mats.(t.fields{i_fields}) = conmat.mats.(t.fields{i_fields})(:,t.tidx);
+        end
+    end
+end
+
+conmat.mats.block = repmat(1:conmat.totalblocks,conmat.trialsperblock,1);
+conmat.mats.block = conmat.mats.block(:)';
+
+t.resp_hand =  {'LINKE','RECHTE'};
+if flag_training == 1
+    t.idx = randsample([1 2],1);
+else
+    t.idx = repmat([1 2],1,conmat.totalblocks/2);
+end
+conmat.mats.responsehand = repmat(t.resp_hand(t.idx(randperm(numel(t.idx)))),conmat.trialsperblock,1);
+conmat.mats.responsehand = conmat.mats.responsehand(:)';
+
+%% write all information into trial structure
+% create frame mat, onset time for events
+t.fields = fieldnames(conmat.mats);
+conmat.trials = struct();
+
+for i_field = 1:numel(t.fields)
+    if conmat.totaltrials == 1
+        if ndims(conmat.mats.(t.fields{i_field}))>1
+            values = num2cell(conmat.mats.(t.fields{i_field}),[1,2]);
+        else
+            values = num2cell(conmat.mats.(t.fields{i_field}),[1]);
+        end
+    else
+        if ndims(conmat.mats.(t.fields{i_field}))>2
+            values = num2cell(conmat.mats.(t.fields{i_field}),[1,2]);
+        else
+            values = num2cell(conmat.mats.(t.fields{i_field}),[1]);
+        end
+    end
+    [conmat.trials(1:conmat.totaltrials).(t.fields{i_field})] = values{:};              % Assign field dynamically
+end
+% add trial num
+t.trials = num2cell(1:conmat.totaltrials);
+[conmat.trials(1:conmat.totaltrials).trialnum] = t.trials{:};
+
+%% graphical check for a certain trial
+% trial2disp = 2;
+% % graphical display
+% figure;
+% imagesc(squeeze(conmat.mats.contrast_windows(:,:,trial2disp))');
+% colormap("gray")
+% hold on
+% contour(~isnan(repmat(conmat.mats.blink_windows(:,trial2disp),trial2disp,4)'),[1], 'r', 'LineWidth', 0.5);
+% colorbar
+% ylabel('RDK number')
+% xlabel('presentation window in each trial')
+% 
+% vline(conmat.mats.event_onset_frames(:,trial2disp)/(p.scr_refrate*p.stim.contr_intervalllength/1000),'g')
+
+end
+
