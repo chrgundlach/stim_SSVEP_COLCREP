@@ -1,6 +1,6 @@
 function [] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 % run_COLCREP(sub,flag_training, flag_isolum, flag_block)
-%   runs experiment SSVEP_FShift_Prime1of2
+%   runs experiment SSVEP_COLCREP
 %       sub:            participant number
 %       flag_training:  1 = do training
 %       flag_isolum:    1 = do isoluminance adjustment
@@ -11,7 +11,7 @@ function [] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 % challenge to the narrow inhibitory zone account of Stormer &amp; Alvarez
 
 % open questions/to do:
-% - pres_instruction needs to be adapted
+% - 
 
 
 
@@ -35,6 +35,7 @@ p.targ_respwin          = [201, 1000];          % time window for responses in m
 
 % screen
 p.scr_num               = 1;                    % screen number
+% p.scr_num               = 2;                    % screen number [for trouble shooting]
 p.scr_res               = [1920 1080];          % resolution
 p.scr_refrate           = 480;                  % refresh rate in Hz (e.g. 85)
 p.scr_color             = [0.05 0.05 0.05 1];   % default: [0.05 0.05 0.05 1]; ; color of screen [R G B Alpha]
@@ -94,7 +95,7 @@ p.stim.event.min_dist   = 0.8;              % min time between events in s
 RDK.RDK(1).size             = [200 200];                % width and height of RDK in pixel; only even values 
 RDK.RDK(1).centershift      = [-176 0];                 % position of RDK center; x and y deviation from center in pixel [-x 0] = left
 RDK.RDK(1).col              = [1 0 0 1; p.scr_color(1:3) 0];% "on" and "off" color
-RDK.RDK(1).col_label        = 'red';                    % label of RDK color
+RDK.RDK(1).col_label        = 'rot';                    % label of RDK color
 RDK.RDK(1).freq             = 14;                       % flicker frequency, frequency of a full "on"-"off"-cycle
 RDK.RDK(1).mov_freq         = 120;                      % Defines how frequently the dot position is updated; 0 will adjust the update-frequency to your flicker frequency (i.e. dot position will be updated with every "on"-and every "off"-frame); 120 will update the position for every frame for 120Hz or for every 1. quadrant for 480Hz 
 RDK.RDK(1).num              = 85;                       % number of dots % 85
@@ -106,7 +107,7 @@ RDK.RDK(1).shape            = 1;                        % 1 = square RDK; 0 = el
 RDK.RDK(2).size             = RDK.RDK(1).size;                
 RDK.RDK(2).centershift      = RDK.RDK(1).centershift;                  
 RDK.RDK(2).col              = [0 0.4 1 1; p.scr_color(1:3) 0];
-RDK.RDK(2).col_label        = 'blue';                    % label of RDK color
+RDK.RDK(2).col_label        = 'blau';                    % label of RDK color
 RDK.RDK(2).freq             = 20;
 RDK.RDK(2).mov_freq         = RDK.RDK(1).mov_freq;
 RDK.RDK(2).num              = RDK.RDK(1).num;
@@ -165,7 +166,7 @@ p.trig.blink            = [66];                 % trigger when blink window star
 
 
 % logfiles
-p.log.path              = '/home/stimulation120/matlab/user/christopher/run_COLCREP/logfiles/';
+p.log.path              = '/home/stimulation120/matlab/user/christopher/stim_SSVEP_COLCREP/logfiles/';
 p.log.exp_name          = 'SSVEP_COLCREP';
 p.log.add               = '_a';
 
@@ -199,12 +200,12 @@ end
 
 
 %% Screen init
-% ps.input = struct('ScrNum',p.scr_num,'RefRate',p.scr_refrate,'PRPXres',p.scr_res,'BckGrCol',p.scr_color,'PRPXmode',2);
-% [~, ps.screensize, ps.xCenter, ps.yCenter, ps.window, ps.framerate, ps.RespDev, ps.keymap] = PTExpInit_GLSL(ps.input,1);
+ps.input = struct('ScrNum',p.scr_num,'RefRate',p.scr_refrate,'PRPXres',p.scr_res,'BckGrCol',p.scr_color,'PRPXmode',2);
+[~, ps.screensize, ps.xCenter, ps.yCenter, ps.window, ps.framerate, ps.RespDev, ps.keymap] = PTExpInit_GLSL(ps.input,1);
 
-% for testing outside of lab
-ps.input = struct('ScrNum',2,'RefRate',60,'PRPXres',p.scr_res,'BckGrCol',p.scr_color,'PRPXmode',0);
-[~, ps.screensize, ps.xCenter, ps.yCenter, ps.window, ps.framerate, ps.RespDev, ps.keymap] = PTExpInit_GLSL_adj(ps.input,0);
+% % for testing outside of lab
+% ps.input = struct('ScrNum',2,'RefRate',60,'PRPXres',p.scr_res,'BckGrCol',p.scr_color,'PRPXmode',0);
+% [~, ps.screensize, ps.xCenter, ps.yCenter, ps.window, ps.framerate, ps.RespDev, ps.keymap] = PTExpInit_GLSL_adj(ps.input,0);
 
 % some initial calculations
 % fixation cross
@@ -278,11 +279,11 @@ if p.flag_training
     while flag_trainend == 0 % do training until ended
         rng(p.sub*100+i_bl,'v4')
         randmat.training{i_bl} = rand_COLCREP(p, RDK,  1);
-        % pres_instruction(p,ps,RDK,i_bl,randmat.training{i_bl},1,key); % Instruktion fürs Training
+        pres_instruction(p,ps,RDK,i_bl,randmat.training{i_bl},1,key); % Instruktion fürs Training
         [timing.training{i_bl},button_presses.training{i_bl},resp.training{i_bl}] = ...
             pres_COLCREP(p, ps, key, RDK, randmat.training{i_bl}, i_bl,1);
         save(sprintf('%s%s',p.log.path,p.filename),'timing','button_presses','resp','randmat','p', 'RDK')
-        pres_feedback(resp.training,p,ps, key,RDK)
+        pres_feedback(resp.training{i_bl},p,ps, key,RDK)
                
         % loop for training to be repeated
         fprintf(1,'\nTraing wiederholen? (j/n)')
@@ -367,7 +368,7 @@ else
     if ~isempty(p.isol.override)
         isol.opt(3).available = true;
         isol.opt(3).colors = p.isol.override;
-        isol.opt(3).text = sprintf('manuell definiert in p.isol override: [%1.2f %1.2f %1.2f %1.2f] [%1.2f %1.2f %1.2f %1.2f] [%1.2f %1.2f %1.2f %1.2f]',isol.opt(3).colors');
+        isol.opt(3).text = sprintf('manuell definiert in p.isol override: [%1.2f %1.2f %1.2f %1.2f] [%1.2f %1.2f %1.2f %1.2f] [%1.2f %1.2f %1.2f %1.2f] [%1.2f %1.2f %1.2f %1.2f]',isol.opt(3).colors');
     else
         isol.opt(3).available = false;
         isol.opt(3).colors = [];

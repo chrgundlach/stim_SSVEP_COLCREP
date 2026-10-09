@@ -5,6 +5,7 @@ function [] = pres_feedback(responses,p,ps, key,RDK)
 WaitSecs(0.5);
 %% calculate feedback
 % get number of all events
+
 t.num_presses=sum(cellfun(@(x) sum(sum(~isnan(x))),{responses.button_presses_t}));    % number of total button presse
 
 % target number
@@ -61,8 +62,8 @@ quadshift = [p.scr_res(1)*(1/4) p.scr_res(2)*(1/4); p.scr_res(1)*(3/4) p.scr_res
 
 for i_con = 1:numel(summ.hits)
     fprintf(1,...
-        ['\n%s Hitrate: %06.2f; Hits: %02.0f; Misses: %02.0f; CR: %02.0f; FA: [%02.0f %02.0f]; RT: M: %3.0f, Std: %3.0f ms'],...
-        t.textin{i_con}, summ.hits(i_con)/summ.targnum(i_con)*100, summ.hits(i_con), summ.misses(i_con), ...
+        ['\nHitrate: %06.2f; Hits: %02.0f; Misses: %02.0f; CR: %02.0f; FA: [%02.0f %02.0f]; RT: M: %3.0f, Std: %3.0f ms'],...
+        summ.hits(i_con)/summ.targnum(i_con)*100, summ.hits(i_con), summ.misses(i_con), ...
         summ.CR(i_con), summ.FA_proper(i_con),  summ.FA(i_con), summ.RT_mean(i_con), summ.RT_std(i_con))
 end
 fprintf('\nMit "q" geht es weiter.\n')

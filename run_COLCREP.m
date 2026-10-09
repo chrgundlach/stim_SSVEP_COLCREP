@@ -1,6 +1,6 @@
 function [] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 % run_COLCREP(sub,flag_training, flag_isolum, flag_block)
-%   runs experiment SSVEP_FShift_Prime1of2
+%   runs experiment SSVEP_COLCREP
 %       sub:            participant number
 %       flag_training:  1 = do training
 %       flag_isolum:    1 = do isoluminance adjustment
@@ -18,7 +18,7 @@ function [] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 % Christopher Gundlach, Jasna Martionovic, Norman Forschack, Leipzig, 2026
 
 if nargin < 4
-    help run_FShiftPrime1of2
+    help run_COLCREP
     return
 end
 
@@ -35,7 +35,7 @@ p.targ_respwin          = [201, 1000];          % time window for responses in m
 
 % screen
 p.scr_num               = 1;                    % screen number
-p.scr_num               = 2;                    % screen number [for trouble shooting]
+% p.scr_num               = 2;                    % screen number [for trouble shooting]
 p.scr_res               = [1920 1080];          % resolution
 p.scr_refrate           = 480;                  % refresh rate in Hz (e.g. 85)
 p.scr_color             = [0.05 0.05 0.05 1];   % default: [0.05 0.05 0.05 1]; ; color of screen [R G B Alpha]
@@ -166,7 +166,7 @@ p.trig.blink            = [66];                 % trigger when blink window star
 
 
 % logfiles
-p.log.path              = '/home/stimulation120/matlab/user/christopher/run_COLCREP/logfiles/';
+p.log.path              = '/home/stimulation120/matlab/user/christopher/stim_SSVEP_COLCREP/logfiles/';
 p.log.exp_name          = 'SSVEP_COLCREP';
 p.log.add               = '_a';
 
@@ -200,12 +200,12 @@ end
 
 
 %% Screen init
-% ps.input = struct('ScrNum',p.scr_num,'RefRate',p.scr_refrate,'PRPXres',p.scr_res,'BckGrCol',p.scr_color,'PRPXmode',2);
-% [~, ps.screensize, ps.xCenter, ps.yCenter, ps.window, ps.framerate, ps.RespDev, ps.keymap] = PTExpInit_GLSL(ps.input,1);
+ps.input = struct('ScrNum',p.scr_num,'RefRate',p.scr_refrate,'PRPXres',p.scr_res,'BckGrCol',p.scr_color,'PRPXmode',2);
+[~, ps.screensize, ps.xCenter, ps.yCenter, ps.window, ps.framerate, ps.RespDev, ps.keymap] = PTExpInit_GLSL(ps.input,1);
 
-% for testing outside of lab
-ps.input = struct('ScrNum',2,'RefRate',60,'PRPXres',p.scr_res,'BckGrCol',p.scr_color,'PRPXmode',0);
-[~, ps.screensize, ps.xCenter, ps.yCenter, ps.window, ps.framerate, ps.RespDev, ps.keymap] = PTExpInit_GLSL_adj(ps.input,0);
+% % for testing outside of lab
+% ps.input = struct('ScrNum',2,'RefRate',60,'PRPXres',p.scr_res,'BckGrCol',p.scr_color,'PRPXmode',0);
+% [~, ps.screensize, ps.xCenter, ps.yCenter, ps.window, ps.framerate, ps.RespDev, ps.keymap] = PTExpInit_GLSL_adj(ps.input,0);
 
 % some initial calculations
 % fixation cross
@@ -283,7 +283,7 @@ if p.flag_training
         [timing.training{i_bl},button_presses.training{i_bl},resp.training{i_bl}] = ...
             pres_COLCREP(p, ps, key, RDK, randmat.training{i_bl}, i_bl,1);
         save(sprintf('%s%s',p.log.path,p.filename),'timing','button_presses','resp','randmat','p', 'RDK')
-        pres_feedback(resp.training,p,ps, key,RDK)
+        pres_feedback(resp.training{i_bl},p,ps, key,RDK)
                
         % loop for training to be repeated
         fprintf(1,'\nTraing wiederholen? (j/n)')
@@ -447,12 +447,12 @@ end
 if ~exist('i_bl'); i_bl = 1; end
 while flag_trainend == 0 % do training until ended
     rng(p.sub*100+i_bl,'v4')
-    randmat.training{i_bl} = rand_FShiftPrime1of2(p, RDK,  1);
+    randmat.training{i_bl} = rand_COLCREP(p, RDK,  1);
     pres_instruction(p,ps,RDK,i_bl,randmat.training{i_bl},1,key); % Instruktion fürs Training
     [timing.training{i_bl},button_presses.training{i_bl},resp.training{i_bl}] = ...
-        pres_FShiftPrime1of2(p, ps, key, RDK, randmat.training{i_bl}, i_bl,1);
+        pres_COLCREP(p, ps, key, RDK, randmat.training{i_bl}, i_bl,1);
     save(sprintf('%s%s',p.log.path,p.filename),'timing','button_presses','resp','randmat','p', 'RDK')
-    pres_feedback(resp.training,p,ps, key,RDK)
+    pres_feedback(resp.training{i_bl},p,ps, key,RDK)
     
     % loop for training to be repeated
     fprintf(1,'\nTraing wiederholen? (j/n)')
@@ -476,14 +476,14 @@ rng(p.sub,'v4')                                 % allow for same randomization o
 randmat.experiment = rand_COLCREP(p, RDK,  0);    % randomization
 for i_bl = p.flag_block:p.stim.blocknum
     % instruction before each block
-    % pres_instruction(p,ps,RDK,i_bl,randmat.experiment,2,key); % Instruktion fürs Experiment
+    pres_instruction(p,ps,RDK,i_bl,randmat.experiment,2,key); % Instruktion fürs Experiment
     % start experiment
     [timing.experiment{i_bl},button_presses.experiment{i_bl},resp.experiment{i_bl}] = ...
         pres_COLCREP(p, ps, key, RDK, randmat.experiment, i_bl,0);
     % save logfiles
     save(sprintf('%s%s',p.log.path,p.filename),'timing','button_presses','resp','randmat','p', 'RDK')
           
-    pres_feedback(resp.experiment,p,ps, key, RDK)    
+    pres_feedback(resp.experiment{i_bl},p,ps, key, RDK)    
 end
 
 fprintf(1,'\n\nENDE\n')

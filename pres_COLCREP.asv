@@ -58,7 +58,9 @@ for i_tr = 1:numel(trialindex)
         'cue',1);
     RDKin.trial.event = struct('onset',conmat.trials(trialindex(i_tr)).event_onset_frames,...
         'direction',conmat.trials(trialindex(i_tr)).eventdirection,'RDK',conmat.trials(trialindex(i_tr)).eventRDK);
+    fprintf('\nInitialisiere trial...')
     [colmat,dotmat,dotsize,rdkidx,frames, lummat] = RDK_init_COLCREP(RDKin.scr,RDKin.Propixx,RDKin.RDK,RDKin.trial,RDKin.crs);
+    fprintf('done!\n')
 
     % this needs to be adapted to display colors correctly
     % first create an addtional contrastmat for all dots in each frame that can then be used to alter the colors
@@ -80,12 +82,12 @@ for i_tr = 1:numel(trialindex)
     crossmat = ones(1,size(colmat,3)); % by default show normal fixation cross
     
     % display blink cross
-    for i_blink = find(~isnan(resp.blink_windows))
-        t.idx = (1:(p.scr_refrate*p.stim.contr_intervalllength/1000))-1 + ...
+    for i_blink = find(~isnan(conmat.trials(trialindex(i_tr)).blink_windows))
+        t.idx = (1:(p.scr_refrate/p.scr_imgmultipl*p.stim.contr_intervalllength/1000))-1 + ...
             ((conmat.trials(trialindex(i_tr)).contrast_window_onsetframes(i_blink)-1)/p.scr_imgmultipl)+1;
         crossmat(t.idx) = 2;
     end
-    conmat.trials(trialindex(i_tr)).blink_windows
+    
 
     % color
     colmat_cr = repmat(p.crs.color' ,[1 1 size(colmat,3)]);
@@ -205,30 +207,30 @@ for i_tr = 1:numel(trialindex)
         % Screen('DrawDots', ps.window, dotmat(:,:,i_fl), dotsize(:,i_fl), colmat(:,:,i_fl), ps.center, 0, 0);
         Screen('DrawDots', ps.window, dotmat(:,:,i_fl), dotsize(:,i_fl), colmat_scaled(:,:,i_fl), ps.center, 0, 0);
         % fixation cross
-        Screen('DrawLines', ps.window, p.crs.lines{crossmat}, p.crs.width, p.crs.color, ps.center, 0);
+        Screen('DrawLines', ps.window, p.crs.lines{crossmat(i_fl)}, p.crs.width, p.crs.color, ps.center, 0);
         
         %% start trigger schedule and start listening to response device
-        % if i_fl == 1 % send the trigger with the start of the 1st flip
-        %     Datapixx('RegWrVideoSync');
-        % end
+        if i_fl == 1 % send the trigger with the start of the 1st flip
+            Datapixx('RegWrVideoSync');
+        end
         
         % Flip
         [timing(i_tr).VBLTimestamp(i_fl), timing(i_tr).StimulusOnsetTime(i_fl), timing(i_tr).FlipTimestamp(i_fl), timing(i_tr).Missed(i_fl)] = Screen('Flip', ps.window, 0);
         
         % send trigger/save timing/ reset timing
-        % if i_fl == 1
-        %     % start trigger
-        %     starttime=GetSecs;
-        %     KbEventFlush(ps.RespDev); % flush keyboard
-        % end
+        if i_fl == 1
+            % start trigger
+            starttime=GetSecs;
+            KbEventFlush(ps.RespDev); % flush keyboard
+        end
         
         %% check for button presses
-        % [key.pressed, key.firstPress]=KbQueueCheck(ps.RespDev);
-        % key.presses{i_tr}(i_fl,:)=key.firstPress(key.keymap)>1;
-        % key.presses_t{i_tr}(i_fl,:)=(key.firstPress(key.keymap)-starttime).*key.presses{i_tr}(i_fl,:);
-        % if any(key.firstPress(key.keymap)>1)
-        %     lptwrite(1,find(key.firstPress(key.keymap),1,'first'),500);
-        % end
+        [key.pressed, key.firstPress]=KbQueueCheck(ps.RespDev);
+        key.presses{i_tr}(i_fl,:)=key.firstPress(key.keymap)>1;
+        key.presses_t{i_tr}(i_fl,:)=(key.firstPress(key.keymap)-starttime).*key.presses{i_tr}(i_fl,:);
+        if any(key.firstPress(key.keymap)>1)
+            lptwrite(1,find(key.firstPress(key.keymap),1,'first'),500);
+        end
         %% Stimulation Demo Video Part 2/3 - Adding Frames
         % Screen('AddFrameToMovie', ps.window);
     end
