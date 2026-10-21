@@ -1,4 +1,4 @@
-function [] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
+function [RDK] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 % run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 %   runs experiment SSVEP_COLCREP
 %       sub:            participant number
@@ -18,7 +18,7 @@ function [] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 % Christopher Gundlach, Jasna Martionovic, Norman Forschack, Leipzig, 2026
 
 if nargin < 4
-    help run_FShiftPrime1of2
+    help run_COLCREP
     return
 end
 
@@ -38,12 +38,12 @@ p.scr_num               = 1;                    % screen number
 % p.scr_num               = 2;                    % screen number [for trouble shooting]
 p.scr_res               = [1920 1080];          % resolution
 p.scr_refrate           = 480;                  % refresh rate in Hz (e.g. 85)
-p.scr_color             = [0.05 0.05 0.05 1];   % default: [0.05 0.05 0.05 1]; ; color of screen [R G B Alpha]
+p.scr_color             = [0.316 0.316 0.316 1];   % default: [0.05 0.05 0.05 1]; ; color of screen [R G B Alpha]
 p.scr_imgmultipl        = 4;
 
 % some isoluminace parameters
 p.isol.TrlAdj           = 5;                    % number of trials used for isoluminance adjustment
-p.isol.MaxStd           = 10;                   % standard deviation tolerated
+p.isol.MaxStd           = 5;                   % standard deviation tolerated
 p.isol.run              = false;                % isoluminance run?
 p.isol.override         = [];                   % manually set colors for RDK1 to RDKXs e.g. []
 p.isol.override         = repmat([0.0980 0.0392 0 1; 0 0.0596 0.1490 1],2,1); % these are the ones used for p.isol.bckgr = p.scr_color(1:3);
@@ -58,20 +58,27 @@ p.isol.bckgr            = p.scr_color;          % isoluminant to background or d
 p.stim.side2attend      = [1 2];            % which sides need to be attended? 1 = left; 2 = right; fixed per stimulation block
 p.stim.RDK2attend       = [1 3];            % which RDK needs to be attended; [RDK attended con 1; RDK attended con 2] for [side attended 1, side attended 2]
                                             %  [1 2] = left; [3 4] = right [so far attended color is fixed for participant]
+% p.stim.contr_level_cons = { ...             % contrast sweep levels for [RDK1 to RDK4] by conditions 1 = lowest; n = highest; orthogonal to p.stim.side2attend
+%     {4 4 4 4;                               % RDK on attended side of attended color
+%     1 2 3 4;                                % RDK on attended side of unattended color
+%     4 4 4 4;                                % RDK on unattended side of attended color
+%     1 2 3 4};                               % RDK on unattended side of unattended color          
+%     {1 2 3 4;
+%     4 4 4 4;
+%     1 2 3 4;
+%     4 4 4 4}};
+% change of distractor color on both sides only
 p.stim.contr_level_cons = { ...             % contrast sweep levels for [RDK1 to RDK4] by conditions 1 = lowest; n = highest; orthogonal to p.stim.side2attend
-    {4 4 4 4;                               % RDK on attended side of attended color
-    1 2 3 4;                                % RDK on attended side of unattended color
-    4 4 4 4;                                % RDK on unattended side of attended color
-    1 2 3 4};                               % RDK on unattended side of unattended color          
-    {1 2 3 4;
-    4 4 4 4;
-    1 2 3 4;
-    4 4 4 4}};
-p.stim.contr_level_cons = { ...             % contrast sweep levels for [RDK1 to RDK4] by conditions 1 = lowest; n = highest; orthogonal to p.stim.side2attend
-    {4 4 4 4;                               % RDK on attended side of attended color
-    1 2 3 4;                                % RDK on attended side of unattended color
+    {1 2 3 4;                               % RDK on attended side of attended color
+    4 4 4 4;                                % RDK on attended side of unattended color
     4 4 4 4;                                % RDK on unattended side of attended color
     1 2 3 4}};
+% change of target color on both sides only
+p.stim.contr_level_cons = { ...             % contrast sweep levels for [RDK1 to RDK4] by conditions 1 = lowest; n = highest; orthogonal to p.stim.side2attend
+    {1 2 3 4;                               % RDK on attended side of attended color
+    4 4 4 4;                                % RDK on attended side of unattended color
+    1 2 3 4;                                % RDK on unattended side of attended color
+    4 4 4 4}};
 t.allNumbers = cell2mat([p.stim.contr_level_cons{:}]);
 p.stim.unique_contrasts =unique(t.allNumbers);
 p.stim.condition        = numel(p.stim.side2attend)*size(p.stim.RDK2attend,1)*sum(cellfun('size' ,p.stim.contr_level_cons,2));
@@ -158,7 +165,7 @@ p.trig.rec_stop         = 254;                  % trigger to stop recording
 p.trig.tr_start         = 77;                   % trial start; main experiment
 p.trig.tr_stop          = 99;                   % trial end; main experiment
 p.trig.tr_cued_side     = [100 200];            % cue type: [RDK1 RDK2]
-p.trig.tr_contr_type    = 10*(1:numel(numel(p.stim.contr_level_cons))); % contrast levels
+p.trig.tr_contr_type    = 10*(1:numel(numel(p.stim.contr_level_cons))); % contrast type
 p.trig.tr_contr_level   = p.stim.unique_contrasts; % contrast levels
 p.trig.button           = 60;                   % button press
 p.trig.event_type       = [71 72];              % target distractor
@@ -311,14 +318,35 @@ if flag_isolum == 1
 %     Datapixx('RegWrRd');
      
     % initial colors
-    p.isol.init_cols = cell2mat({RDK.RDK.col}'); p.isol.init_cols = p.isol.init_cols(1:2:end,1:3);
+    % ColorNavigator % (with hues:[101, 71, 131, 170, 301]'; %  with high chroma=60, lightness=63 (0.316 grey): :  yellow, green, lime, green, blue
+    % selectedColors = abTableSelecCol(:,1:6);
+    % selectedColors.Properties.VariableNames{1,1} = 'names';
+    % selectedColors.names = {'yellow'; 'orange'; 'lime'; 'green'; 'blue'};
+    % selectedIsogray = selectedColors(1,:);
+    % selectedIsogray.names = 'isogray';
+    % [selectedIsogray.goalLCh(1,1:3), selectedIsogray.goalLab(1,1:3)] = deal([selectedColors.goalLab(1,1) 0 0]);
+    % selectedIsogray.goalPpRGB = grayColor; 
+    % [selectedIsogray.hueAngle selectedIsogray.goalLCh(3)] = deal(nan); 
+    % selectedIsogray.goalStdRGB = xyz2rgb(lab2xyz(selectedIsogray.goalLab(1:3)));
+    % save('selectedColors_CIELAB63Gray60Chroma_20261015.mat','selectedColors','selectedIsogray')
+    % load color preselection
+    load('selectedColors_CIELAB63Gray60Chroma_20261015.mat','selectedColors')
+    % p.isol.init_cols = cell2mat({RDK.RDK.col}'); p.isol.init_cols = p.isol.init_cols(1:2:end,1:3);
+    p.isol.init_cols = [selectedColors.goalPpRGB([1 5],:);...
+        selectedColors.goalPpRGB(1:4,:)];
     
     % start isoluminance script only RGB output (no alpha)
-    [Col2Use] = PRPX_IsolCol_480_adj(...
+    % [Col2Use] = PRPX_IsolCol_480_adj(...
+    %     [p.isol.bckgr(1:3); p.isol.init_cols(:,1:3)],...
+    %     p.isol.TrlAdj,...
+    %     p.isol.MaxStd,...
+    %     cellfun(@(x) x(1), {RDK.RDK.centershift})',...
+    %     RDK.RDK(1).size);
+    [Col2Use] = PRPX_IsolCol_480_Lab(...
         [p.isol.bckgr(1:3); p.isol.init_cols(:,1:3)],...
         p.isol.TrlAdj,...
         p.isol.MaxStd,...
-        cellfun(@(x) x(1), {RDK.RDK.centershift})',...
+        0,...
         RDK.RDK(1).size);
     
     for i_RDK = 1:numel(RDK.RDK)
@@ -447,12 +475,12 @@ end
 if ~exist('i_bl'); i_bl = 1; end
 while flag_trainend == 0 % do training until ended
     rng(p.sub*100+i_bl,'v4')
-    randmat.training{i_bl} = rand_FShiftPrime1of2(p, RDK,  1);
+    randmat.training{i_bl} = rand_COLCREP(p, RDK,  1);
     pres_instruction(p,ps,RDK,i_bl,randmat.training{i_bl},1,key); % Instruktion fürs Training
     [timing.training{i_bl},button_presses.training{i_bl},resp.training{i_bl}] = ...
-        pres_FShiftPrime1of2(p, ps, key, RDK, randmat.training{i_bl}, i_bl,1);
+        pres_COLCREP(p, ps, key, RDK, randmat.training{i_bl}, i_bl,1);
     save(sprintf('%s%s',p.log.path,p.filename),'timing','button_presses','resp','randmat','p', 'RDK')
-    pres_feedback(resp.training,p,ps, key,RDK)
+    pres_feedback(resp.training{i_bl},p,ps, key,RDK)
     
     % loop for training to be repeated
     fprintf(1,'\nTraing wiederholen? (j/n)')
@@ -476,14 +504,14 @@ rng(p.sub,'v4')                                 % allow for same randomization o
 randmat.experiment = rand_COLCREP(p, RDK,  0);    % randomization
 for i_bl = p.flag_block:p.stim.blocknum
     % instruction before each block
-    % pres_instruction(p,ps,RDK,i_bl,randmat.experiment,2,key); % Instruktion fürs Experiment
+    pres_instruction(p,ps,RDK,i_bl,randmat.experiment,2,key); % Instruktion fürs Experiment
     % start experiment
     [timing.experiment{i_bl},button_presses.experiment{i_bl},resp.experiment{i_bl}] = ...
         pres_COLCREP(p, ps, key, RDK, randmat.experiment, i_bl,0);
     % save logfiles
     save(sprintf('%s%s',p.log.path,p.filename),'timing','button_presses','resp','randmat','p', 'RDK')
           
-    pres_feedback(resp.experiment,p,ps, key, RDK)    
+    pres_feedback(resp.experiment{i_bl},p,ps, key, RDK)    
 end
 
 fprintf(1,'\n\nENDE\n')

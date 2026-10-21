@@ -1,4 +1,4 @@
-function [] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
+function [RDK] = run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 % run_COLCREP(sub,flag_training, flag_isolum, flag_block)
 %   runs experiment SSVEP_COLCREP
 %       sub:            participant number
@@ -38,12 +38,12 @@ p.scr_num               = 1;                    % screen number
 % p.scr_num               = 2;                    % screen number [for trouble shooting]
 p.scr_res               = [1920 1080];          % resolution
 p.scr_refrate           = 480;                  % refresh rate in Hz (e.g. 85)
-p.scr_color             = [0.05 0.05 0.05 1];   % default: [0.05 0.05 0.05 1]; ; color of screen [R G B Alpha]
+p.scr_color             = [0.316 0.316 0.316 1];   % default: [0.05 0.05 0.05 1]; ; color of screen [R G B Alpha]
 p.scr_imgmultipl        = 4;
 
 % some isoluminace parameters
 p.isol.TrlAdj           = 5;                    % number of trials used for isoluminance adjustment
-p.isol.MaxStd           = 10;                   % standard deviation tolerated
+p.isol.MaxStd           = 5;                   % standard deviation tolerated
 p.isol.run              = false;                % isoluminance run?
 p.isol.override         = [];                   % manually set colors for RDK1 to RDKXs e.g. []
 p.isol.override         = repmat([0.0980 0.0392 0 1; 0 0.0596 0.1490 1],2,1); % these are the ones used for p.isol.bckgr = p.scr_color(1:3);
@@ -55,23 +55,29 @@ p.isol.bckgr            = p.scr_color;          % isoluminant to background or d
 
 
 % stimplan
-p.stim.side2attend      = [1 2];            % which sides need to be attended? 1 = left; 2 = right; fixed per stimulation block
-p.stim.RDK2attend       = [1 3];            % which RDK needs to be attended; [RDK attended con 1; RDK attended con 2] for [side attended 1, side attended 2]
+p.stim.side2attend      = [1];            % which sides need to be attended? 1 = center; 2 = periphery; fixed per stimulation block
+p.stim.RDK2attend       = [2 3];            % which RDK needs to be attended; [RDK attended con 1; RDK attended con 2] for [side attended 1, side attended 2]
                                             %  [1 2] = left; [3 4] = right [so far attended color is fixed for participant]
+% p.stim.contr_level_cons = { ...             % contrast sweep levels for [RDK1 to RDK4] by conditions 1 = lowest; n = highest; orthogonal to p.stim.side2attend
+%     {4 4 4 4;                               % RDK on attended side of attended color
+%     1 2 3 4;                                % RDK on attended side of unattended color
+%     4 4 4 4;                                % RDK on unattended side of attended color
+%     1 2 3 4};                               % RDK on unattended side of unattended color          
+%     {1 2 3 4;
+%     4 4 4 4;
+%     1 2 3 4;
+%     4 4 4 4}};
+% change of distractor color in periphery only
 p.stim.contr_level_cons = { ...             % contrast sweep levels for [RDK1 to RDK4] by conditions 1 = lowest; n = highest; orthogonal to p.stim.side2attend
-    {4 4 4 4;                               % RDK on attended side of attended color
-    1 2 3 4;                                % RDK on attended side of unattended color
-    4 4 4 4;                                % RDK on unattended side of attended color
-    1 2 3 4};                               % RDK on unattended side of unattended color          
-    {1 2 3 4;
-    4 4 4 4;
-    1 2 3 4;
-    4 4 4 4}};
-p.stim.contr_level_cons = { ...             % contrast sweep levels for [RDK1 to RDK4] by conditions 1 = lowest; n = highest; orthogonal to p.stim.side2attend
-    {4 4 4 4;                               % RDK on attended side of attended color
-    1 2 3 4;                                % RDK on attended side of unattended color
-    4 4 4 4;                                % RDK on unattended side of attended color
-    1 2 3 4}};
+    {1 2 3 4;                               % RDK on unattended side (periphery) of attended and neighboring colors
+     4 4 4 4;                               % RDK on attended side (center) of unattended color
+     4 4 4 4;}};                            % RDK on attended side (center) of attended color
+% % change of target color on both sides only
+% p.stim.contr_level_cons = { ...             % contrast sweep levels for [RDK1 to RDK4] by conditions 1 = lowest; n = highest; orthogonal to p.stim.side2attend
+%     {1 2 3 4;                               % RDK on attended side of attended color
+%     4 4 4 4;                                % RDK on attended side of unattended color
+%     1 2 3 4;                                % RDK on unattended side of attended color
+%     4 4 4 4}};
 t.allNumbers = cell2mat([p.stim.contr_level_cons{:}]);
 p.stim.unique_contrasts =unique(t.allNumbers);
 p.stim.condition        = numel(p.stim.side2attend)*size(p.stim.RDK2attend,1)*sum(cellfun('size' ,p.stim.contr_level_cons,2));
@@ -79,7 +85,7 @@ p.stim.contr_intervalllength = 1000;        % interval length of how long each c
 
 p.stim.contr_repeats_per_block = 12;        % number of up and down sweeps per stimulation block
 p.stim.blocknum         = 40;               % number of blocks with series of contrast sweeps
-p.stim.eventnum         = 10;                % number of events per block
+p.stim.eventnum         = 10;               % number of events per block
 
 p.stim.event.type       = 2;                % types of events (1 = targets only, 2 = targets + distrators)
 p.stim.event.ratio      = [1 1];            % ratio of events vs distractors
@@ -92,10 +98,10 @@ p.stim.event.min_dist   = 0.8;              % min time between events in s
 % stimuli
 % positions as in Gundlach et al., 2023: RDK 9.4*9.4 with 4.8 distance between ERP_visualangle(200, 120, [1920 1080]/2, [63.5 36])
 % RDK1 = left color 1; RDK2 = left color 2; RDK3 = right color 1; RDK4 = right color 2; 
-RDK.RDK(1).size             = [200 200];                % width and height of RDK in pixel; only even values 
-RDK.RDK(1).centershift      = [-176 0];                 % position of RDK center; x and y deviation from center in pixel [-x 0] = left
+RDK.RDK(1).size             = [150 250];                % width and height of RDK in pixel; only even values 
+RDK.RDK(1).centershift      = [-150 0];                 % position of RDK center; x and y deviation from center in pixel [-x 0] = left
 RDK.RDK(1).col              = [1 0 0 1; p.scr_color(1:3) 0];% "on" and "off" color
-RDK.RDK(1).col_label        = 'rot';                    % label of RDK color
+RDK.RDK(1).col_label        = 'gelb';                    % label of RDK color
 RDK.RDK(1).freq             = 14;                       % flicker frequency, frequency of a full "on"-"off"-cycle
 RDK.RDK(1).mov_freq         = 120;                      % Defines how frequently the dot position is updated; 0 will adjust the update-frequency to your flicker frequency (i.e. dot position will be updated with every "on"-and every "off"-frame); 120 will update the position for every frame for 120Hz or for every 1. quadrant for 480Hz 
 RDK.RDK(1).num              = 85;                       % number of dots % 85
@@ -105,7 +111,7 @@ RDK.RDK(1).dot_size         = 12;
 RDK.RDK(1).shape            = 1;                        % 1 = square RDK; 0 = ellipse/circle RDK;
  
 RDK.RDK(2).size             = RDK.RDK(1).size;                
-RDK.RDK(2).centershift      = RDK.RDK(1).centershift;                  
+RDK.RDK(2).centershift      = [0 0];                  
 RDK.RDK(2).col              = [0 0.4 1 1; p.scr_color(1:3) 0];
 RDK.RDK(2).col_label        = 'blau';                    % label of RDK color
 RDK.RDK(2).freq             = 20;
@@ -117,9 +123,9 @@ RDK.RDK(2).dot_size         = RDK.RDK(1).dot_size;
 RDK.RDK(2).shape            = RDK.RDK(1).shape;          
 
 RDK.RDK(3).size             = RDK.RDK(1).size;              
-RDK.RDK(3).centershift      = [176 0];                   
+RDK.RDK(3).centershift      = [0 0];                   
 RDK.RDK(3).col              = RDK.RDK(1).col;
-RDK.RDK(3).col_label        = RDK.RDK(1).col_label;
+RDK.RDK(3).col_label        = 'gelb';
 RDK.RDK(3).freq             = 17;
 RDK.RDK(3).mov_freq         = RDK.RDK(1).mov_freq;
 RDK.RDK(3).num              = RDK.RDK(1).num;
@@ -128,17 +134,17 @@ RDK.RDK(3).mov_dir          = RDK.RDK(1).mov_dir;
 RDK.RDK(3).dot_size         = RDK.RDK(1).dot_size;
 RDK.RDK(3).shape            = RDK.RDK(1).shape;
 
-RDK.RDK(4).size             = RDK.RDK(1).size;              
-RDK.RDK(4).centershift      = RDK.RDK(3).centershift;                   
-RDK.RDK(4).col              = RDK.RDK(2).col;
-RDK.RDK(4).col_label        = RDK.RDK(2).col_label;
-RDK.RDK(4).freq             = 23;
-RDK.RDK(4).mov_freq         = RDK.RDK(1).mov_freq;
-RDK.RDK(4).num              = RDK.RDK(1).num;
-RDK.RDK(4).mov_speed        = RDK.RDK(1).mov_speed;
-RDK.RDK(4).mov_dir          = RDK.RDK(1).mov_dir;
-RDK.RDK(4).dot_size         = RDK.RDK(1).dot_size;
-RDK.RDK(4).shape            = RDK.RDK(1).shape;
+% RDK.RDK(4).size             = RDK.RDK(1).size;              
+% RDK.RDK(4).centershift      = RDK.RDK(3).centershift;                   
+% RDK.RDK(4).col              = RDK.RDK(2).col;
+% RDK.RDK(4).col_label        = RDK.RDK(2).col_label;
+% RDK.RDK(4).freq             = 23;
+% RDK.RDK(4).mov_freq         = RDK.RDK(1).mov_freq;
+% RDK.RDK(4).num              = RDK.RDK(1).num;
+% RDK.RDK(4).mov_speed        = RDK.RDK(1).mov_speed;
+% RDK.RDK(4).mov_dir          = RDK.RDK(1).mov_dir;
+% RDK.RDK(4).dot_size         = RDK.RDK(1).dot_size;
+% RDK.RDK(4).shape            = RDK.RDK(1).shape;
 
 RDK.event.type              = 'globalmotion';               % event type global motion
 RDK.event.duration          = p.stim.event.length;          % time of coherent motion
@@ -158,7 +164,7 @@ p.trig.rec_stop         = 254;                  % trigger to stop recording
 p.trig.tr_start         = 77;                   % trial start; main experiment
 p.trig.tr_stop          = 99;                   % trial end; main experiment
 p.trig.tr_cued_side     = [100 200];            % cue type: [RDK1 RDK2]
-p.trig.tr_contr_type    = 10*(1:numel(numel(p.stim.contr_level_cons))); % contrast levels
+p.trig.tr_contr_type    = 10*(1:numel(numel(p.stim.contr_level_cons))); % contrast type
 p.trig.tr_contr_level   = p.stim.unique_contrasts; % contrast levels
 p.trig.button           = 60;                   % button press
 p.trig.event_type       = [71 72];              % target distractor
@@ -251,9 +257,10 @@ key.keymap_ind = find(key.keymap);
 % initialize randomization of  RDK colors [RDK1 and RDK2 task relevant RDK3 and RDK4 not]
 rng(p.sub,'v4')
 [RDK.RDK(:).col_init] = deal(RDK.RDK(:).col);
-t.idx = randperm(2); t.idx = [t.idx t.idx+2];
-[RDK.RDK(:).col] = deal(RDK.RDK(t.idx).col);
-[RDK.RDK(:).col_label] = deal(RDK.RDK(t.idx).col_label);
+% t.idx = randperm(2); t.idx = [t.idx t.idx+2]; % split
+t.idx = randperm(2); t.idx = t.idx+1; % central vs periphery
+[RDK.RDK([2 3]).col] = deal(RDK.RDK(t.idx).col);
+[RDK.RDK([2 3]).col_label] = deal(RDK.RDK(t.idx).col_label);
 p.isol.override = p.isol.override(t.idx,:);
 
 % initialize blank variables
@@ -311,14 +318,35 @@ if flag_isolum == 1
 %     Datapixx('RegWrRd');
      
     % initial colors
-    p.isol.init_cols = cell2mat({RDK.RDK.col}'); p.isol.init_cols = p.isol.init_cols(1:2:end,1:3);
+    % ColorNavigator % (with hues:[101, 71, 131, 170, 301]'; %  with high chroma=60, lightness=63 (0.316 grey): :  yellow, green, lime, green, blue
+    % selectedColors = abTableSelecCol(:,1:6);
+    % selectedColors.Properties.VariableNames{1,1} = 'names';
+    % selectedColors.names = {'yellow'; 'orange'; 'lime'; 'green'; 'blue'};
+    % selectedIsogray = selectedColors(1,:);
+    % selectedIsogray.names = 'isogray';
+    % [selectedIsogray.goalLCh(1,1:3), selectedIsogray.goalLab(1,1:3)] = deal([selectedColors.goalLab(1,1) 0 0]);
+    % selectedIsogray.goalPpRGB = grayColor; 
+    % [selectedIsogray.hueAngle selectedIsogray.goalLCh(3)] = deal(nan); 
+    % selectedIsogray.goalStdRGB = xyz2rgb(lab2xyz(selectedIsogray.goalLab(1:3)));
+    % save('selectedColors_CIELAB63Gray60Chroma_20261015.mat','selectedColors','selectedIsogray')
+    % load color preselection
+    load('selectedColors_CIELAB63Gray60Chroma_20261015.mat','selectedColors')
+    % p.isol.init_cols = cell2mat({RDK.RDK.col}'); p.isol.init_cols = p.isol.init_cols(1:2:end,1:3);
+    p.isol.init_cols = [selectedColors.goalPpRGB([1 5],:);...
+        selectedColors.goalPpRGB(1:4,:)];
     
     % start isoluminance script only RGB output (no alpha)
-    [Col2Use] = PRPX_IsolCol_480_adj(...
+    % [Col2Use] = PRPX_IsolCol_480_Lab(...
+    %     [p.isol.bckgr(1:3); p.isol.init_cols(:,1:3)],...
+    %     p.isol.TrlAdj,...
+    %     p.isol.MaxStd,...
+    %     cellfun(@(x) x(1), {RDK.RDK.centershift})',...
+    %     RDK.RDK(1).size);
+    [Col2Use] = PRPX_IsolCol_480_Lab(...
         [p.isol.bckgr(1:3); p.isol.init_cols(:,1:3)],...
         p.isol.TrlAdj,...
         p.isol.MaxStd,...
-        cellfun(@(x) x(1), {RDK.RDK.centershift})',...
+        0,...
         RDK.RDK(1).size);
     
     for i_RDK = 1:numel(RDK.RDK)

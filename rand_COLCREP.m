@@ -256,10 +256,10 @@ t.trials = num2cell(1:conmat.totaltrials);
 [conmat.trials(1:conmat.totaltrials).trialnum] = t.trials{:};
 
 %% graphical check for a certain trial
-% trial2disp = 2;
+% trial2disp = 1;
 % % graphical display
 % figure;
-% imagesc(squeeze(conmat.mats.contrast_windows(:,:,trial2disp))');
+% imagesc(squeeze(conmat.mats.contrast_levels(:,:,trial2disp))');
 % colormap("gray")
 % hold on
 % contour(~isnan(repmat(conmat.mats.blink_windows(:,trial2disp),trial2disp,4)'),[1], 'r', 'LineWidth', 0.5);

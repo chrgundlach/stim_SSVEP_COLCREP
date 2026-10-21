@@ -49,7 +49,7 @@ ttt=WaitSecs(0.3);
 crttime = GetSecs;
 
 % loop across trials
-for i_tr = 1:numel(trialindex)
+for i_tr = 1:numel(trialindex) % trial sequences (roughly 1 min)
     fprintf('%1.0f',mod(i_tr,10))
     inittime=GetSecs;
     %% initialize trial structure, RDK, cross, logs

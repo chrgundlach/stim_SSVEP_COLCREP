@@ -1,4 +1,4 @@
-function [colmat,dotmat,dotsize,rdkidx,frames,varargout] = RDK_init_FShiftPrime1of2(scr,Propixx,RDK,trial,cross)
+function [colmat,dotmat,dotsize,rdkidx,frames,varargout] = RDK_init_basic(scr,Propixx,RDK,trial,cross)
 %RDK_init initializes parameters for RDKs
 % This function initializes dot colors and dot positions for every frame.
 % The different RDKs are treated as "one big dot cloud". Dots are
@@ -45,12 +45,13 @@ function [colmat,dotmat,dotsize,rdkidx,frames,varargout] = RDK_init_FShiftPrime1
 %
 % To do:
 
-% check for frames
-if ~isfield(trial, 'frames')
-    frames.pertrial = trial.duration*scr.refrate;
-else
-    frames.pertrial = trial.frames;
-end
+% % check for frames
+% if ~isfield(trial, 'frames')
+%     frames.pertrial = trial.duration*scr.refrate;
+% else
+%     frames.pertrial = trial.frames;
+% end
+frames.pertrial = 1;
 frames.flips = frames.pertrial/Propixx; % There are 4 frames per flip in the QUAD4X mode
 
 % check for flicker type and setup default (SSVEP)
@@ -74,8 +75,8 @@ for r = 1:length(RDK.RDK)
     switch RDK.RDK(r).flicker_type
         case 'SSVEP'
             
-            % define on frames
-            onframes = scr.refrate/RDK.RDK(r).freq/2; %number of "on"-frames
+            % % define on frames
+            % onframes = scr.refrate/RDK.RDK(r).freq/2; %number of "on"-frames
             
             % setup color matrix sync on cue
             if ~isfield(trial, 'cue') % check for at certain frame (shifting design) vs cued befor trial design
@@ -96,23 +97,24 @@ for r = 1:length(RDK.RDK)
             end
             % create vector of x*2*10^t.dec seconds that contains two parts ending with a full cycle and that it is at least twice as long
             % as the pre-cue or post-cue window
-            if any(scr.refrate*10^t.dec < [frames.pertrial-fr_cue+1 fr_cue-1])
-                t.framenum = 2 * scr.refrate * 10^t.dec * ...
-                    max(ceil([frames.pertrial-fr_cue+1 fr_cue-1]/scr.refrate*10^t.dec));
-            else
-                t.framenum = 2*scr.refrate*10^t.dec;
-            end
+            % if any(scr.refrate*10^t.dec < [frames.pertrial-fr_cue+1 fr_cue-1])
+            %     t.framenum = 2 * scr.refrate * 10^t.dec * ...
+            %         max(ceil([frames.pertrial-fr_cue+1 fr_cue-1]/scr.refrate*10^t.dec));
+            % else
+            %     t.framenum = 2*scr.refrate*10^t.dec;
+            % end
             % create frame vector for MakeFlicker function
-            t.frames = 0:t.framenum-1;
+            % t.frames = 0:t.framenum-1;
             % create raw weights with interpolated flanks (is longer than it should be
-            weight_raw = MakeFlicker(t.frames,scr.refrate/RDK.RDK(r).freq);
+            % weight_raw = MakeFlicker(t.frames,scr.refrate/RDK.RDK(r).freq);
             % figure; plot(t.frames./scr.refrate, weight_raw)
             % prune weights according to number of pre-cue and post-cue frames
-            t.idx = [ (1:fr_cue-1) + numel(weight_raw)/2 - (fr_cue-1)... % pre-cue
-                (numel(weight_raw)/2)+(1:frames.pertrial-fr_cue+1)]; % post-cue
-            weight = weight_raw(t.idx);
+            % t.idx = [ (1:fr_cue-1) + numel(weight_raw)/2 - (fr_cue-1)... % pre-cue
+            %     (numel(weight_raw)/2)+(1:frames.pertrial-fr_cue+1)]; % post-cue
+            % weight = weight_raw(t.idx);
             % figure; plot(t.frames(t.idx)./scr.refrate, weight)
             % figure; plot( weight)
+            weight = 1;
             
         case 'BRBF'
             % create phase modulated signal
@@ -142,24 +144,26 @@ for r = 1:length(RDK.RDK)
     % adjust color values by weight
     % with color targets created if subclass 'colorchange' is defined
     colmat_r = zeros(size(RDK.RDK(r).col,2), RDK.RDK(r).num, frames.pertrial); %setup color matrix: RGB x dot number x frames
-    % index which dots are moved coherently
-    t.cohidx = randsample(RDK.RDK(r).num,ceil(RDK.RDK(r).num*RDK.event.coherence));
-    t.cohidx2 = false(1,RDK.RDK(r).num); t.cohidx2(t.cohidx)=true;
-    for w=1:length(weight)
-        if  strcmp(RDK.event.type, 'colorchange') & ... % is color change the event class?
-                (w >= trial.event.onset & w <= (trial.event.onset+RDK.event.duration*scr.refrate)) & ... % time of event?
-                r == trial.event.RDK                    % current RDK is event RDK
-            % weigh all colors by weights
-            colmat_r(:,:,w) = ...
-                repmat((weight(w)*RDK.RDK(r).col(1,:) + (1-weight(w))*RDK.RDK(r).col(2,:))',[1,RDK.RDK(r).num]); %Formula to compute weighted colour for every frame
-            % define only for a defined proportion of dots
-            colmat_r(:,t.cohidx2,w) = ...
-                repmat((weight(w)*trial.event.color(1,:) + (1-weight(w))*trial.event.color(2,:))',[1,sum(t.cohidx2)]); %Formula to compute weighted colour for every frame
-        else
-            colmat_r(:,:,w) = ...
-                repmat((weight(w)*RDK.RDK(r).col(1,:) + (1-weight(w))*RDK.RDK(r).col(2,:))',[1,RDK.RDK(r).num]); %Formula to compute weighted colour for every frame
-        end
-    end
+
+    % % index which dots are moved coherently
+    % t.cohidx = randsample(RDK.RDK(r).num,ceil(RDK.RDK(r).num*RDK.event.coherence));
+    % t.cohidx2 = false(1,RDK.RDK(r).num); t.cohidx2(t.cohidx)=true;
+    % for w=1:length(weight)
+    %     if  strcmp(RDK.event.type, 'colorchange') & ... % is color change the event class?
+    %             (w >= trial.event.onset & w <= (trial.event.onset+RDK.event.duration*scr.refrate)) & ... % time of event?
+    %             r == trial.event.RDK                    % current RDK is event RDK
+    %         % weigh all colors by weights
+    %         colmat_r(:,:,w) = ...
+    %             repmat((weight(w)*RDK.RDK(r).col(1,:) + (1-weight(w))*RDK.RDK(r).col(2,:))',[1,RDK.RDK(r).num]); %Formula to compute weighted colour for every frame
+    %         % define only for a defined proportion of dots
+    %         colmat_r(:,t.cohidx2,w) = ...
+    %             repmat((weight(w)*trial.event.color(1,:) + (1-weight(w))*trial.event.color(2,:))',[1,sum(t.cohidx2)]); %Formula to compute weighted colour for every frame
+    %     else
+    %         colmat_r(:,:,w) = ...
+    %             repmat((weight(w)*RDK.RDK(r).col(1,:) + (1-weight(w))*RDK.RDK(r).col(2,:))',[1,RDK.RDK(r).num]); %Formula to compute weighted colour for every frame
+    %     end
+    % end
+
     % do not interpolate alpha!
     % current implementation creates a flicker for RDKs really alternating between the two specified colors
     % and not between 'not displayed' and 'displayed'
@@ -205,10 +209,11 @@ for r = 1:length(RDK.RDK)
     for f = 1:frames.pertrial %predefine dot positions for every frame
             
         %update dot position either random or as target event if event class 'globalmotion is specified'
-        if any(f>=trial.event.onset & ...
-                f<trial.event.onset+(RDK.event.duration*scr.refrate) & ...
-                trial.event.RDK == r & ...
-                strcmp(RDK.event.type, 'globalmotion'))
+        if 0
+        % if any(f>=trial.event.onset & ...
+        %         f<trial.event.onset+(RDK.event.duration*scr.refrate) & ...
+        %         trial.event.RDK == r & ...
+        %         strcmp(RDK.event.type, 'globalmotion'))
             % do coherent motion of certain dots
             t.evidx = find(f>=trial.event.onset & f<trial.event.onset+(RDK.event.duration*scr.refrate));
             if any(f==trial.event.onset(t.evidx))
@@ -255,17 +260,17 @@ for r = 1:length(RDK.RDK)
         dotmat_r(:,:,f) = dot_pos; 
     end
      
-    % add QUAD4X shift to positions
-    if Propixx == 4
-        for p=1:Propixx
-        shift_idx = p:Propixx:frames.pertrial;  
-        dotmat_r(:,:,shift_idx) = [dotmat_r(1,:,shift_idx)+scr.shift(p,1); dotmat_r(2,:,shift_idx)+scr.shift(p,2)];
-        end
-    end   
+    % % add QUAD4X shift to positions
+    % if Propixx == 4
+    %     for p=1:Propixx
+    %     shift_idx = p:Propixx:frames.pertrial;  
+    %     dotmat_r(:,:,shift_idx) = [dotmat_r(1,:,shift_idx)+scr.shift(p,1); dotmat_r(2,:,shift_idx)+scr.shift(p,2)];
+    %     end
+    % end   
     % add RDK centershift to positions
     dotmat_r = [dotmat_r(1,:,:)+RDK.RDK(r).centershift(1); dotmat_r(2,:,:)+RDK.RDK(r).centershift(2)];
      
-    % setup array to mark to wich RDK a dot belongs %ToDo: is this necessary?
+    % setup array to mark to which RDK a dot belongs %ToDo: is this necessary?
     rdkidx_r(1:RDK.RDK(r).num,1:frames.pertrial) = r;
     
     % define size for each dot
@@ -296,16 +301,17 @@ dotsize = dotsize(shuffle_idx,:);
 
 lummamat_dots = nan(size(rdkidx));
 for i_rdk = 1:length(RDK.RDK)
-    lummamat_dots(rdkidx(:,1)==i_rdk,:) = repmat(lummat(i_rdk,:))
+    lummamat_dots(rdkidx(:,1)==i_rdk,:) = repmat(lummat(i_rdk,:),sum(rdkidx(:,1)==i_rdk),1);
 end
 
 colmat = reshape(colmat,[size(colmat,1), size(rdkidx,1)*Propixx, frames.flips]);
 dotmat = reshape(dotmat,[2, size(rdkidx,1)*Propixx, frames.flips]);
 rdkidx = reshape(rdkidx,[size(rdkidx,1)*Propixx, frames.flips]);
 dotsize = reshape(dotsize,[size(dotsize,1)*Propixx, frames.flips]);
+lummamat_dots = reshape(lummamat_dots,[size(lummamat_dots,1)*Propixx, frames.flips]);
 
 
-varargout{1} = lummat;
+varargout{1} = lummamat_dots;
 end
 
 %% SUBFUNCTIONS
