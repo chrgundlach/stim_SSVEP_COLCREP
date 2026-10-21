@@ -63,7 +63,18 @@ else
 end
 
 % which RDKs are attended?
-conmat.mats.RDK2attend = p.stim.RDK2attend([conmat.mats.side2attend]);
+% conmat.mats.RDK2attend = p.stim.RDK2attend([conmat.mats.side2attend]);
+conmat.mats.RDK2attend = reshape(repmat(p.stim.RDK2attend,1,numel(conmat.mats.side2attend)/numel(p.stim.RDK2attend)),1,[]);
+
+% which hue levels
+for i_side = 1:numel(p.stim.side2attend)
+    for i_rdk2attend = 1:numel(p.stim.RDK2attend)
+        t.idx = conmat.mats.side2attend == i_side & ...
+            conmat.mats.RDK2attend == p.stim.RDK2attend(i_rdk2attend);
+        conmat.mats.hue_levels(t.idx) = repmat(p.stim.hue_levels,1, sum(t.idx)/numel(p.stim.hue_levels));
+    end
+end
+
 
 % which contrast level condition? p.stim.contr_level_cons
 if flag_training~=0
@@ -129,10 +140,15 @@ conmat.mats.eventnum = repmat(p.stim.eventnum,1,conmat.totaltrials);
 conmat.mats.eventtype = nan(p.stim.eventnum,conmat.totaltrials);
 t.sides = unique(conmat.mats.side2attend);
 for i_side = 1:numel(t.sides)
-    for i_cont = 1:numel(unique(conmat.mats.contrast_con))
-        t.idx = conmat.mats.side2attend==t.sides(i_side) & conmat.mats.contrast_con == i_cont;
-        t.mat = repmat(1:p.stim.event.type,1,sum(t.idx)*p.stim.eventnum/p.stim.event.type);
-        conmat.mats.eventtype(:,t.idx) = reshape(randsample(t.mat,numel(t.mat)),p.stim.eventnum,[]);
+    for i_rdk2attend = 1:numel(p.stim.RDK2attend)
+        for i_hue = 1:numel(p.stim.hue_levels)
+            for i_cont = 1:numel(unique(conmat.mats.contrast_con))
+                t.idx = conmat.mats.side2attend==t.sides(i_side) & conmat.mats.contrast_con == i_cont & ...
+                    conmat.mats.RDK2attend == p.stim.RDK2attend(i_rdk2attend) & conmat.mats.hue_levels == i_hue;
+                t.mat = repmat(1:p.stim.event.type,1,sum(t.idx)*p.stim.eventnum/p.stim.event.type);
+                conmat.mats.eventtype(:,t.idx) = reshape(randsample(t.mat,numel(t.mat)),p.stim.eventnum,[]);
+            end
+        end
     end
 end
 
@@ -140,7 +156,7 @@ end
 conmat.mats.eventRDK = nan(size(conmat.mats.eventtype));
 t.mat = repmat(conmat.mats.side2attend,p.stim.eventnum,1); % which side attended?
 t.mat2 = repmat(conmat.mats.RDK2attend,p.stim.eventnum,1); % which RDK attended?
-t.RDKidx = [1 2; 3 4]; % RDKs on left and right side
+t.RDKidx = [2 3]; % RDKs on left and right side
 % for targets
 conmat.mats.eventRDK(conmat.mats.eventtype==1)=t.mat2(conmat.mats.eventtype==1);
 % for distractors
