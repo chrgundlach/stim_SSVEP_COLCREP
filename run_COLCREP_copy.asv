@@ -89,7 +89,7 @@ p.stim.condition        = numel(p.stim.side2attend)*size(p.stim.RDK2attend,1)*su
 p.stim.contr_intervalllength = 1000;        % interval length of how long each contrast is shown in ms
 
 p.stim.contr_repeats_per_block = 12;        % number of up and down sweeps per stimulation block
-p.stim.blocknum         = 42;               % number of blocks with series of contrast sweeps
+p.stim.blocknum         = 40;               % number of blocks with series of contrast sweeps
 p.stim.eventnum         = 10;               % number of events per block
 
 p.stim.event.type       = 2;                % types of events (1 = targets only, 2 = targets + distrators)
@@ -168,9 +168,11 @@ p.trig.rec_start        = 253;                  % trigger to start recording
 p.trig.rec_stop         = 254;                  % trigger to stop recording
 p.trig.tr_start         = 77;                   % trial start; main experiment
 p.trig.tr_stop          = 99;                   % trial end; main experiment
-p.trig.tr_cued_side     = [100 200];            % cue type: [RDK1 RDK2]
+p.trig.tr_cued_side     = [100 200];            % cue type: [RDK1 RDK2] % not used any longer
+p.trig.tr_cued_RDK      = [100 200];            % cue type: [RDK1 RDK2] % not used any longer
 p.trig.tr_contr_type    = 10*(1:numel(numel(p.stim.contr_level_cons))); % contrast type
-p.trig.tr_contr_level   = p.stim.unique_contrasts; % contrast levels
+p.trig.tr_contr_level   = p.stim.unique_contrasts; % contrast levels [old not used]
+p.trig.tr_hue           = p.stim.hue_levels; % contrast levels [old not used]
 p.trig.button           = 60;                   % button press
 p.trig.event_type       = [71 72];              % target distractor
 p.trig.blink            = [66];                 % trigger when blink window starts

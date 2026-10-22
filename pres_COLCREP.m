@@ -74,6 +74,8 @@ for i_tr = 1:numel(trialindex) % trial sequences (roughly 1 min)
     % figure; plot(t.mat')
     % we can now use the contrastmat to scale the colmat
     % here all RGB values are however scaled...I gues it is not what we wanted
+    % see randmat.hue for selected color in periphery indexing isoColor table (or selectedColor table)
+    % then calculate chroma 
     contrastmat_scaled = (contrastmat+1)./(max(contrastmat(:))+1);
     colmat_scaled = colmat;
     colmat_scaled(1:3,:,:) = colmat(1:3,:,:).*permute(repmat(contrastmat_scaled,[1,1,3]),[3 1 2]); % don't scale alpha value
@@ -111,6 +113,7 @@ for i_tr = 1:numel(trialindex) % trial sequences (roughly 1 min)
     resp(i_tr).contrast_levels          = conmat.trials(trialindex(i_tr)).contrast_levels;
     resp(i_tr).contrast_window_onsetframes = conmat.trials(trialindex(i_tr)).contrast_window_onsetframes;
     resp(i_tr).contrast_window_onsettimes = conmat.trials(trialindex(i_tr)).contrast_window_onsettimes;
+    resp(i_tr).hue                      = conmat.trials(trialindex(i_tr)).hue_levels;
     resp(i_tr).col_attended             = {RDK.RDK(conmat.trials(trialindex(i_tr)).RDK2attend).col_label};
     resp(i_tr).freq_attended            = [RDK.RDK(conmat.trials(trialindex(i_tr)).RDK2attend).freq];
     resp(i_tr).triallength_times        = conmat.trials(trialindex(i_tr)).triallength_times;
@@ -145,8 +148,10 @@ for i_tr = 1:numel(trialindex) % trial sequences (roughly 1 min)
     % condition trigger accoding to chroma contrast type and level and attended side
     for i_window = 2:size(resp(i_tr).contrast_levels,1)
         doutWave(resp(i_tr).contrast_window_onsetframes(i_window)) = ...
-            p.trig.tr_cued_side(resp(i_tr).side_attended) + ... % which side to attend
-            p.trig.tr_contr_type(resp(i_tr).contrast_con) + ... % which contrast type
+            % p.trig.tr_cued_side(resp(i_tr).side_attended) + ... % which side to attend [old]
+            % p.trig.tr_contr_type(resp(i_tr).contrast_con) + ... % which contrast type [old]
+            p.trig.tr_cued_RDK(resp(i_tr).RDK_attended) + ... % which RDK to attend
+            p.trig.tr_hue(resp(i_tr).hue) + ... % which hue
             p.trig.tr_contr_level(resp(i_tr).contrast_levels(i_window)); % which contrast level within the respective type
     end
     

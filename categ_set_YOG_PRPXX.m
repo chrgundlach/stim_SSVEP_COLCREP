@@ -1,4 +1,4 @@
-function categ_set_YOG_PRPXX(participantNumber,scr_param,RDK)
+function categ_set_YOG_PRPXX(participantNumber,scr_param,RDK,p)
 
 % Participants adjust the hue of a square in 3-degree steps
 % to match one of four category labels: yellow, orange, lime, green.
@@ -23,6 +23,7 @@ close all;
 
 
 %% ---------------- EXPERIMENT SETTINGS ----------------
+if nargin < 4 || ~isfield(p,'isol')
 R=[0.665 0.321]; G=[0.172 0.726]; B=[0.163 0.039]; %propix phosphors
 WP=[0.3127 0.3290 1-0.3127-0.3290]; %D65
 
@@ -30,6 +31,15 @@ WP=[0.3127 0.3290 1-0.3127-0.3290]; %D65
 L_fixed = 63;       % CIELAB lightness, L
 C_fixed = 60;       % CIELAB chroma, C, at maximum contrast level
 Cmin=25; %minimum Chroma - should be sufficient for noticing colour
+else
+    R=p.isol.R; G=p.isol.G; B=p.isol.B; %propix phosphors
+    WP=p.isol.WP; %D65
+
+    % Fixed CIELCH parameters
+    L_fixed = p.isol.L_fixed;       % CIELAB lightness, L
+    C_fixed = p.isol.C_fixed;       % CIELAB chroma, C, at maximum contrast level
+    Cmin    = p.isol.Cmin;
+end
 
 % Hue adjustment
 hueStep = 3;        % Degrees per button press

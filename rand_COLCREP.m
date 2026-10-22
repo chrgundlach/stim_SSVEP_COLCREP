@@ -55,23 +55,28 @@ end
 t.windowmat = reshape(repmat(1:conmat.triallength_windows,p.scr_refrate,1),1,[]);
 
 %% start randomization
-% randomize position/side to attend
+% randomize position/side to attend & which RDKs are attended?
 if flag_training~=0
     conmat.mats.side2attend = randsample(p.stim.side2attend,1);
+    conmat.mats.RDK2attend = randsample(p.stim.RDK2attend,1);
 else
     conmat.mats.side2attend = reshape(repmat(p.stim.side2attend,conmat.totaltrials/numel(p.stim.side2attend),1),1,[]);
+    conmat.mats.RDK2attend = reshape(repmat(p.stim.RDK2attend,1,numel(conmat.mats.side2attend)/numel(p.stim.RDK2attend)),1,[]);
 end
 
 % which RDKs are attended?
 % conmat.mats.RDK2attend = p.stim.RDK2attend([conmat.mats.side2attend]);
-conmat.mats.RDK2attend = reshape(repmat(p.stim.RDK2attend,1,numel(conmat.mats.side2attend)/numel(p.stim.RDK2attend)),1,[]);
 
 % which hue levels
-for i_side = 1:numel(p.stim.side2attend)
-    for i_rdk2attend = 1:numel(p.stim.RDK2attend)
-        t.idx = conmat.mats.side2attend == i_side & ...
-            conmat.mats.RDK2attend == p.stim.RDK2attend(i_rdk2attend);
-        conmat.mats.hue_levels(t.idx) = repmat(p.stim.hue_levels,1, sum(t.idx)/numel(p.stim.hue_levels));
+if flag_training~=0
+    conmat.mats.hue_levels = randsample(p.stim.hue_levels,1);
+else
+    for i_side = 1:numel(p.stim.side2attend)
+        for i_rdk2attend = 1:numel(p.stim.RDK2attend)
+            t.idx = conmat.mats.side2attend == i_side & ...
+                conmat.mats.RDK2attend == p.stim.RDK2attend(i_rdk2attend);
+            conmat.mats.hue_levels(t.idx) = repmat(p.stim.hue_levels,1, sum(t.idx)/numel(p.stim.hue_levels));
+        end
     end
 end
 
@@ -284,6 +289,13 @@ t.trials = num2cell(1:conmat.totaltrials);
 % xlabel('presentation window in each trial')
 % 
 % vline(conmat.mats.event_onset_frames(:,trial2disp)/(p.scr_refrate*p.stim.contr_intervalllength/1000),'g')
+
+% check number of hues and contrasts
+% t.idx = true(size(conmat.mats.blink_windows));
+% t.linidx = sub2ind(size(t.idx),conmat.mats.eventwindow(:),reshape(repmat(1:p.stim.blocknum,p.stim.eventnum,1),[],1));
+% t.idx(t.linidx)=false;
+% sum(isnan(conmat.mats.blink_windows) & conmat.mats.RDK2attend == 2 & ...
+%     conmat.mats.contrast_levels==1 & conmat.mats.hue_levels==1  & t.idx,"all")
 
 end
 
